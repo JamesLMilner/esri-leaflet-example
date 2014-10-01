@@ -1,0 +1,120 @@
+<html>
+	<head>
+		<meta charset=utf-8 />
+		<title>Esri Leaflet Quickstart</title>
+		<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+
+		<!-- Load Leaflet from CDN-->
+		<link href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet" media="screen">
+		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+		<link rel="stylesheet" href="leaflet.awesome-markers.css" />
+		<link rel="stylesheet" href="esri-leaflet-geocoder.css" />
+		<link rel="stylesheet" href="leaflet.markercluster.css" />
+
+		<script src="js/leaflet.js"></script>
+		<script src="js/leaflet.awesome-markers.js"></script>
+		<script src="js/leaflet.markercluster.js"></script>
+		<script src="js/esri-leaflet.js"></script>
+		<script src="js/esri-leaflet-geocoder.js"></script>
+		<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+		<script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+
+		<style>
+			body {margin:0;padding:0;}
+			#map {position: absolute;top:0;bottom:0;right:0;left:0;}
+			.cluster {
+					width: 40px;
+					height: 40px;
+					border-radius: 5px;
+					background-color: rgba(0,0,0,0.4);
+					font-weight: bold;
+					text-align: right;
+					font-size: 20px;
+				}
+			 .geocoder-control.leaflet-control {
+				position: absolute;
+				left: 39px;
+				top: -1px;
+			 }
+		</style>
+
+	</head>
+	<body>
+
+		<div id="map"></div>
+		<script>
+			
+			function getRandomColor() {
+				var letters = '0123456789ABCDEF'.split('');
+				var color = '#';
+				for (var i = 0; i < 6; i++ ) {
+					color += letters[Math.floor(Math.random() * 16)];
+				}
+				return color;
+			}
+			
+			
+			// http://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
+			function shadeColor(color, percent) {  
+				var num = parseInt(color.slice(1),16), amt = Math.round(2.55 * percent), R = (num >> 16) + amt, G = (num >> 8 & 0x00FF) + amt, B = (num & 0x0000FF) + amt;
+				return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+			}
+			
+			var map = L.map('map').setView([51.51823, -0.10800583], 14);
+			var searchControl = new L.esri.Controls.Geosearch().addTo(map); // create the geocoding control and add it to the map
+			var results = new L.LayerGroup().addTo(map); 	// create an empty layer group to store the results and add it to the map
+			 
+			 // listen for the results event and add every result to the map
+			searchControl.on("results", function(data){
+				results.clearLayers();
+				for (var i = data.results.length - 1; i >= 0; i--) {
+				  results.addLayer(L.marker(data.results[i].latlng));
+				};
+			 });
+			
+			var crimeCategories
+			var policeAPI =  "http://data.police.uk/api/crimes-street/all-crime?poly="
+			var BB = "51.514,-0.120:51.524,-0.120:51.524,-0.080:51.514,-0.080" 	// Bounding Box: Min Lon Min Lat,  Min Lon Max Lat, Max Lat Max Lon, Min Lat Max Lon
+			var date = "&date=2014-07"
+			//var example = "http://data.police.uk/api/crimes-street/all-crime?poly=52.268,0.543:52.794,0.238:52.130,0.478&date=2013-01"
+			var crimeURL = policeAPI + BB + date
+			var catagoriesURL = "http://data.police.uk/api/crime-categories"
+
+
+			L.esri.basemapLayer('Gray').addTo(map);
+			L.esri.basemapLayer('GrayLabels').addTo(map);
+
+			var markers = new L.MarkerClusterGroup({ disableClusteringAtZoom: 16, polygonOptions: {color: "#000000", opacity: 0.5},
+				iconCreateFunction: function(cluster) {
+					return new L.DivIcon({ html: '<b>' + cluster.getChildCount() + '</b>', className: "cluster" });
+				}
+			});
+
+		  
+			var policeAPI = crimeURL ; // Police API in JSON
+			 $.getJSON( policeAPI, { format: "json" }).done(function( data ) {
+				$.getJSON( catagoriesURL, { format: "json" }).done(function( categories ) {  
+					//console.log(crimeCategories);
+					for (i = 0; i < data.length; i++)  {
+					
+						ranCol = shadeColor(getRandomColor(), -30)
+						loc = data[i].location
+						for (j = 0; j < categories.length; j++) {
+							if (categories[j].url === data[i].category) {
+								markers.addLayer(L.marker([loc.latitude, loc.longitude],  {icon: L.AwesomeMarkers.icon({icon: 'glyphicon glyphicon-user', prefix: 'glyphicon', markerColor: 'black', iconColor: ranCol })})
+								.bindPopup("<b>Crime Category: </b> " + categories[j].name) )
+								break;
+							}
+						}
+						if (i > 75) { break } // Limit the number of results
+					}
+				}); // End of Categories
+			map.addLayer(markers)
+			
+			
+			}); //End of Crimes Done
+		</script>
+
+	</body>
+</html>
